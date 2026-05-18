@@ -23,6 +23,7 @@ _nt() {
     'export:write diagnostic report'
     'path:show installed paths'
     'fix:clear stale aliases and reload shell integration'
+    'selftest:run nt smoke tests'
     'vpn:show VPN status'
     'firewall:show firewall status'
     'speed:run speedtest'

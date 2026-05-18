@@ -14,6 +14,7 @@ zsh -n shell/network-tools.zsh
 ./bin/nt version >/dev/null
 ./bin/nt tools >/dev/null
 ./bin/nt path >/dev/null
+./bin/nt selftest >/dev/null
 ./install.sh --help >/dev/null
 ./setup.sh --help >/dev/null
 ./install.sh --dry-run --no-verify >/dev/null 2>&1

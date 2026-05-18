@@ -96,6 +96,7 @@ nt wifi
 nt export
 nt path
 nt fix
+nt selftest
 nt vpn
 nt firewall
 ```
@@ -122,6 +123,7 @@ nt firewall
 - `export [file]` - write a diagnostic report
 - `path` - show installed command and config paths
 - `fix` - clear stale `nt` aliases and reload shell integration
+- `selftest` - run local smoke tests for `nt`
 - `vpn` - show Tailscale, WireGuard, and OpenVPN status
 - `firewall` - show UFW, nftables, and iptables status
 - `speed` - run `speedtest` if installed
@@ -144,7 +146,13 @@ Preview rollback:
 ```sh
 ./verify.sh
 make verify
+nt selftest
 ```
+
+## Documentation
+
+- [docs/nt.md](docs/nt.md) - command reference and troubleshooting
+- [CHANGELOG.md](CHANGELOG.md) - release notes
 
 ## License
 
