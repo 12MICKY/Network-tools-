@@ -119,6 +119,10 @@ Preview rollback:
 make verify
 ```
 
+## License
+
+MIT License. See [LICENSE](LICENSE).
+
 ## Shell Integration
 
 The installer adds this managed block to `~/.zshrc` automatically:
