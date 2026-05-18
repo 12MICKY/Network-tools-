@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-repo_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+repo_dir="$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)"
 dry_run=0
 install_deps=0
 check_only=0
@@ -236,6 +236,8 @@ install_file() {
 
 install_zshrc_block() {
   zshrc="$HOME/.zshrc"
+  # Keep $HOME literal in the managed block so the file is portable.
+  # shellcheck disable=SC2016
   integration='$HOME/.config/network-tools/network-tools.zsh'
   integration_line="[ -r \"$integration\" ] && source \"$integration\""
 

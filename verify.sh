@@ -21,7 +21,7 @@ zsh -n shell/network-tools.zsh
 ./uninstall.sh --dry-run >/dev/null 2>&1
 
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck install.sh uninstall.sh verify.sh bin/nt
+  shellcheck install.sh uninstall.sh setup.sh verify.sh bin/nt
 fi
 
 printf 'verify ok\n'

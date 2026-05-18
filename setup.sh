@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-repo_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+repo_dir="$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)"
 
 if [ "${1:-}" = "--reset" ]; then
   "$repo_dir/uninstall.sh"
