@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify shell toolkit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh shellcheck
+
+      - name: Show environment
+        run: |
+          uname -a
+          zsh --version
+          shellcheck --version
+
+      - name: Run project verification
+        run: make verify
+
+      - name: Run shellcheck
+        run: shellcheck install.sh uninstall.sh setup.sh verify.sh bin/nt
+
+      - name: Smoke test nt
+        run: |
+          ./bin/nt version
+          ./bin/nt help
+          ./bin/nt doctor
+          ./bin/nt tools
+          ./bin/nt path
+
+      - name: Smoke test installer dry run
+        run: ./install.sh --dry-run --no-verify

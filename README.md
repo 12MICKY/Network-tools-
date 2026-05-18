@@ -1,5 +1,7 @@
 # Network Tools
 
+[![CI](https://github.com/12MICKY/Network-tools-/actions/workflows/ci.yml/badge.svg)](https://github.com/12MICKY/Network-tools-/actions/workflows/ci.yml)
+
 Practical macOS/Linux network toolkit with one command for quick diagnostics, DNS
 checks, port checks, scans, packet capture helpers, VPN status, and firewall
 inspection.

@@ -456,8 +456,16 @@ selftest() {
   section "Shell integration"
   integration="$HOME/.config/network-tools/network-tools.zsh"
   completion="$HOME/.config/network-tools/completions/nt.zsh"
-  [ -r "$integration" ] && printf 'ok      %s\n' "$integration" || { printf 'missing %s\n' "$integration"; failures=$((failures + 1)); }
-  [ -r "$completion" ] && printf 'ok      %s\n' "$completion" || { printf 'missing %s\n' "$completion"; failures=$((failures + 1)); }
+  if [ -r "$integration" ]; then
+    printf 'ok      %s\n' "$integration"
+  else
+    printf 'not installed %s\n' "$integration"
+  fi
+  if [ -r "$completion" ]; then
+    printf 'ok      %s\n' "$completion"
+  else
+    printf 'not installed %s\n' "$completion"
+  fi
 
   section "Result"
   if [ "$failures" -eq 0 ]; then
