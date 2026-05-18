@@ -6,7 +6,9 @@ dry_run=0
 install_deps=0
 check_only=0
 no_verify=0
+no_shell=0
 stamp="$(date +%Y%m%d-%H%M%S)"
+os_name="$(uname -s)"
 
 usage() {
   cat <<'EOF'
@@ -17,6 +19,7 @@ Options:
   --check         Check this machine without installing files.
   --install-deps  Install recommended network packages, then install nt.
   --no-verify     Skip repo verification before installing.
+  --no-shell      Skip installing shell integration file.
 EOF
 }
 
@@ -46,16 +49,35 @@ has() {
 }
 
 recommended_packages() {
-  printf '%s\n' 'iproute2 net-tools iputils-ping traceroute mtr-tiny dnsutils curl wget netcat-openbsd nmap tcpdump tshark ethtool wireless-tools network-manager nftables ufw openssh-client rsync tailscale wireguard openvpn'
+  case "$os_name" in
+    Darwin)
+      printf '%s\n' 'curl wget nmap tcpdump wireshark mtr bind whois openssl netcat tailscale wireguard-tools openvpn'
+      ;;
+    Linux)
+      printf '%s\n' 'iproute2 net-tools iputils-ping traceroute mtr-tiny dnsutils whois openssl curl wget netcat-openbsd nmap tcpdump tshark ethtool wireless-tools network-manager nftables ufw openssh-client rsync tailscale wireguard openvpn'
+      ;;
+    *)
+      printf '%s\n' 'curl wget nmap tcpdump whois openssl'
+      ;;
+  esac
 }
 
 install_dependencies() {
   section "Installing recommended packages"
 
-  if has apt; then
+  if [ "$os_name" = "Darwin" ] && has brew; then
+    # shellcheck disable=SC2046
+    run brew install $(recommended_packages)
+  elif has apt; then
     run sudo apt update
     # shellcheck disable=SC2046
     run sudo apt install -y $(recommended_packages)
+  elif has dnf; then
+    # shellcheck disable=SC2046
+    run sudo dnf install -y $(recommended_packages)
+  elif has pacman; then
+    # shellcheck disable=SC2046
+    run sudo pacman -S --needed $(recommended_packages)
   else
     warn "No supported package manager found. Install manually:"
     printf '  %s\n' "$(recommended_packages)"
@@ -64,9 +86,10 @@ install_dependencies() {
 
 check_tools() {
   section "Checking network tools"
+  log "OS: $os_name"
 
   missing=''
-  for cmd in ip ss ping curl dig nmap tcpdump tshark tailscale wg openvpn; do
+  for cmd in ping curl openssl nmap tcpdump tailscale openvpn; do
     if has "$cmd"; then
       printf 'ok      %-10s %s\n' "$cmd" "$(command -v "$cmd")"
     else
@@ -77,7 +100,13 @@ check_tools() {
 
   if [ -n "$missing" ]; then
     warn "missing recommended commands:$missing"
-    printf 'Suggested install command:\n  sudo apt update && sudo apt install -y %s\n' "$(recommended_packages)"
+    if [ "$os_name" = "Darwin" ]; then
+      printf 'Suggested install command:\n  brew install %s\n' "$(recommended_packages)"
+    elif has apt; then
+      printf 'Suggested install command:\n  sudo apt update && sudo apt install -y %s\n' "$(recommended_packages)"
+    else
+      printf 'Recommended packages:\n  %s\n' "$(recommended_packages)"
+    fi
   fi
 }
 
@@ -111,6 +140,7 @@ while [ "$#" -gt 0 ]; do
     --check) check_only=1 ;;
     --install-deps) install_deps=1 ;;
     --no-verify) no_verify=1 ;;
+    --no-shell) no_shell=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -139,6 +169,9 @@ fi
 section "Installing files"
 install_file "$repo_dir/bin/nt" "$HOME/.local/bin/nt"
 install_file "$repo_dir/completions/nt.zsh" "$HOME/.config/network-tools/completions/nt.zsh"
+if [ "$no_shell" -ne 1 ]; then
+  install_file "$repo_dir/shell/network-tools.zsh" "$HOME/.config/network-tools/network-tools.zsh"
+fi
 
 section "Post-install check"
 if [ "$dry_run" -eq 1 ]; then

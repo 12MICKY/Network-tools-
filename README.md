@@ -1,6 +1,6 @@
 # Network Tools
 
-Practical Linux network toolkit with one command for quick diagnostics, DNS
+Practical macOS/Linux network toolkit with one command for quick diagnostics, DNS
 checks, port checks, scans, packet capture helpers, VPN status, and firewall
 inspection.
 
@@ -13,14 +13,23 @@ repeatable, and easy to verify.
 ./install.sh
 ```
 
+One-line install from GitHub:
+
+```sh
+git clone https://github.com/12MICKY/Network-tools-.git && cd Network-tools- && ./install.sh
+```
+
 This installs:
 
 - `nt` command to `~/.local/bin/nt`
 - shell completion to `~/.config/network-tools/completions/nt.zsh`
+- shell integration to `~/.config/network-tools/network-tools.zsh`
 
 ## Full Install
 
-Install recommended packages first, then install the command:
+Install recommended packages first, then install the command. The installer
+auto-detects macOS or Linux and uses `brew`, `apt`, `dnf`, or `pacman` when
+available.
 
 ```sh
 ./install.sh --install-deps
@@ -40,11 +49,16 @@ nt help
 nt doctor
 nt summary
 nt dns github.com
+nt http https://github.com
+nt tls github.com
 nt ping 1.1.1.1
 nt trace github.com
 nt ports
 nt scan 192.168.1.1
 nt capture any
+nt wifi
+nt export
+nt path
 nt vpn
 nt firewall
 ```
@@ -56,11 +70,18 @@ nt firewall
 - `interfaces` - show IP addresses and link details
 - `routes` - show routes
 - `dns [host]` - show resolver status and query a host
+- `http [url]` - show HTTP response headers and timing
+- `tls <host> [port]` - show TLS certificate summary
+- `whois <target>` - run `whois` or RDAP lookup
 - `ping [host]` - ping a host
 - `trace [host]` - trace a route with `mtr`, `traceroute`, or `tracepath`
 - `ports` - show listening TCP/UDP ports
 - `scan <target>` - run a fast top-port `nmap` scan
 - `capture [iface] [file]` - run `tcpdump` packet capture
+- `wifi` - show Wi-Fi device and NetworkManager status
+- `monitor [seconds]` - watch the network overview
+- `export [file]` - write a diagnostic report
+- `path` - show installed command and config paths
 - `vpn` - show Tailscale, WireGuard, and OpenVPN status
 - `firewall` - show UFW, nftables, and iptables status
 - `speed` - run `speedtest` if installed
@@ -85,9 +106,25 @@ Preview rollback:
 make verify
 ```
 
+## Shell Integration
+
+For Zsh completion, source the integration file from your `.zshrc`:
+
+```sh
+source ~/.config/network-tools/network-tools.zsh
+```
+
 ## Recommended Packages
+
+Linux:
 
 ```sh
 sudo apt update
-sudo apt install -y iproute2 net-tools iputils-ping traceroute mtr-tiny dnsutils curl wget netcat-openbsd nmap tcpdump tshark ethtool wireless-tools network-manager nftables ufw openssh-client rsync tailscale wireguard openvpn
+sudo apt install -y iproute2 net-tools iputils-ping traceroute mtr-tiny dnsutils whois openssl curl wget netcat-openbsd nmap tcpdump tshark ethtool wireless-tools network-manager nftables ufw openssh-client rsync tailscale wireguard openvpn
+```
+
+macOS:
+
+```sh
+brew install curl wget nmap tcpdump wireshark mtr bind whois openssl netcat tailscale wireguard-tools openvpn
 ```

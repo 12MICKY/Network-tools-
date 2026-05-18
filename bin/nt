@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
-VERSION="0.1.0"
+VERSION="0.2.0"
+OS_NAME="$(uname -s)"
 
 log() {
   printf '%s\n' "$*"
@@ -10,6 +11,10 @@ log() {
 section() {
   log ""
   log "==> $*"
+}
+
+warn() {
+  printf 'warning: %s\n' "$*" >&2
 }
 
 has() {
@@ -28,6 +33,10 @@ run_if() {
   fi
 }
 
+quiet_run() {
+  "$@" 2>/dev/null || true
+}
+
 usage() {
   cat <<'EOF'
 Usage: nt <command> [args]
@@ -38,11 +47,18 @@ Commands:
   interfaces             Show interface addresses and link state
   routes                 Show routes
   dns [host]             Show DNS status and query a host
+  http [url]             Show HTTP headers and timing
+  tls <host> [port]      Show TLS certificate summary
+  whois <target>         Run whois or RDAP lookup
   ping [host]            Ping a host, default 1.1.1.1
   trace [host]           Trace route to a host, default 1.1.1.1
   ports                  Show listening TCP/UDP ports
   scan <target>          Run a fast nmap scan
   capture [iface] [file] Capture packets with tcpdump
+  wifi                   Show Wi-Fi device and network status
+  monitor [seconds]      Refresh network overview
+  export [file]          Write a diagnostic report
+  path                   Show installed nt path and config paths
   vpn                    Show VPN/tunnel status
   firewall               Show firewall status
   speed                  Run speedtest if available
@@ -52,8 +68,11 @@ EOF
 }
 
 doctor() {
+  section "System"
+  printf 'os      %s\n' "$OS_NAME"
+
   section "Core"
-  for cmd in ip ss ping curl; do
+  for cmd in ping curl openssl; do
     if has "$cmd"; then
       printf 'ok      %s\n' "$cmd"
     else
@@ -62,21 +81,46 @@ doctor() {
   done
 
   section "Recommended"
-  for cmd in ifconfig netstat lsof traceroute tracepath mtr dig nslookup host wget nc nmap tcpdump tshark ethtool iw nmcli resolvectl nft ufw ssh rsync tailscale wg openvpn; do
+  case "$OS_NAME" in
+    Darwin)
+      recommended='ifconfig netstat lsof traceroute mtr dig nslookup host whois wget nc nmap tcpdump wireshark networksetup pfctl ssh rsync tailscale wg openvpn'
+      ;;
+    Linux)
+      recommended='ip ifconfig ss netstat lsof traceroute tracepath mtr dig nslookup host whois wget nc nmap tcpdump tshark wireshark ethtool iw nmcli resolvectl nft ufw ssh rsync tailscale wg openvpn'
+      ;;
+    *)
+      recommended='ifconfig netstat lsof traceroute mtr dig nslookup host whois wget nc nmap tcpdump ssh rsync'
+      ;;
+  esac
+
+  for cmd in $recommended; do
     if has "$cmd"; then
       printf 'ok      %-14s %s\n' "$cmd" "$(command -v "$cmd")"
     else
       printf 'missing %s\n' "$cmd"
     fi
   done
+  unset recommended
 }
 
 summary() {
   section "Interfaces"
-  run_if ip -brief address || true
+  if [ "$OS_NAME" = "Darwin" ]; then
+    quiet_run ifconfig
+  elif has ip; then
+    quiet_run ip -brief address
+  else
+    run_if ifconfig || true
+  fi
 
   section "Routes"
-  run_if ip route || true
+  if [ "$OS_NAME" = "Darwin" ]; then
+    quiet_run netstat -rn
+  elif has ip; then
+    quiet_run ip route
+  else
+    run_if route -n || true
+  fi
 
   section "DNS"
   if has resolvectl; then
@@ -93,15 +137,33 @@ summary() {
 }
 
 interfaces() {
-  run_if ip -brief address
+  if [ "$OS_NAME" = "Darwin" ]; then
+    run_if ifconfig
+  elif has ip; then
+    run_if ip -brief address
+  else
+    run_if ifconfig
+  fi
+
   section "Links"
-  run_if ip -brief link
+  if has ip; then
+    run_if ip -brief link
+  fi
 }
 
 routes() {
-  run_if ip route
+  if [ "$OS_NAME" = "Darwin" ]; then
+    run_if netstat -rn
+  elif has ip; then
+    run_if ip route
+  else
+    run_if route -n
+  fi
+
   section "Rules"
-  ip rule 2>/dev/null || true
+  if has ip; then
+    ip rule 2>/dev/null || true
+  fi
 }
 
 dns() {
@@ -119,6 +181,59 @@ dns() {
     host "$host"
   else
     run_if nslookup "$host"
+  fi
+}
+
+http() {
+  url="${1:-https://github.com}"
+
+  if ! has curl; then
+    printf 'missing command: curl\n' >&2
+    return 127
+  fi
+
+  if ! curl -L -o /dev/null -sS -D - \
+    -w '\nlookup=%{time_namelookup}s connect=%{time_connect}s tls=%{time_appconnect}s first_byte=%{time_starttransfer}s total=%{time_total}s status=%{http_code}\n' \
+    "$url"; then
+    warn "HTTP check failed for $url"
+    return 1
+  fi
+}
+
+tls() {
+  host="${1:-}"
+  port="${2:-443}"
+
+  if [ -z "$host" ]; then
+    printf 'usage: nt tls <host> [port]\n' >&2
+    return 2
+  fi
+
+  if ! has openssl; then
+    printf 'missing command: openssl\n' >&2
+    return 127
+  fi
+
+  printf '' | openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null |
+    openssl x509 -noout -subject -issuer -dates -fingerprint -sha256
+}
+
+whois_lookup() {
+  target="${1:-}"
+
+  if [ -z "$target" ]; then
+    printf 'usage: nt whois <target>\n' >&2
+    return 2
+  fi
+
+  if has whois; then
+    whois "$target"
+  elif has curl; then
+    curl -fsS "https://rdap.org/domain/$target" || curl -fsS "https://rdap.org/ip/$target"
+    printf '\n'
+  else
+    printf 'missing command: whois or curl\n' >&2
+    return 127
   fi
 }
 
@@ -140,11 +255,82 @@ trace_host() {
 }
 
 ports() {
-  if has ss; then
-    ss -tulpn
+  if [ "$OS_NAME" = "Darwin" ] && has lsof; then
+    lsof -nP -iTCP -sTCP:LISTEN
+  elif has ss; then
+    ss -tulpn 2>/dev/null || ss -tuln
   else
     run_if netstat -tulpn
   fi
+}
+
+wifi() {
+  section "Wi-Fi devices"
+  if [ "$OS_NAME" = "Darwin" ] && has networksetup; then
+    networksetup -listallhardwareports | sed -n '/Wi-Fi/,+2p'
+  elif has iw; then
+    iw dev || true
+  else
+    log "iw not installed"
+  fi
+
+  section "NetworkManager"
+  if [ "$OS_NAME" = "Darwin" ]; then
+    if has networksetup; then
+      networksetup -getairportnetwork en0 2>/dev/null || networksetup -getairportnetwork en1 2>/dev/null || true
+    fi
+  elif has nmcli; then
+    nmcli device status || true
+    nmcli connection show --active || true
+  else
+    log "nmcli not installed"
+  fi
+}
+
+monitor() {
+  seconds="${1:-2}"
+
+  if has watch; then
+    watch -n "$seconds" "$0 summary"
+  else
+    while :; do
+      clear
+      summary
+      sleep "$seconds"
+    done
+  fi
+}
+
+export_report() {
+  file="${1:-network-report-$(date +%Y%m%d-%H%M%S).txt}"
+
+  {
+    printf 'network-tools report\n'
+    date
+    printf '\nversion: %s\n' "$VERSION"
+    summary
+    doctor
+    vpn
+    firewall
+  } >"$file"
+
+  log "wrote $file"
+}
+
+paths() {
+  section "Executable"
+  if has nt; then
+    command -v nt
+  else
+    log "nt is not in PATH"
+  fi
+
+  section "Config"
+  printf '%s\n' "$HOME/.config/network-tools/network-tools.zsh"
+  printf '%s\n' "$HOME/.config/network-tools/completions/nt.zsh"
+
+  section "OS"
+  printf '%s\n' "$OS_NAME"
 }
 
 scan() {
@@ -196,6 +382,17 @@ vpn() {
 }
 
 firewall() {
+  if [ "$OS_NAME" = "Darwin" ]; then
+    section "pf"
+    if has pfctl; then
+      pfctl -s info 2>/dev/null || true
+      pfctl -sr 2>/dev/null || true
+    else
+      log "pfctl not installed"
+    fi
+    return 0
+  fi
+
   section "UFW"
   if has ufw; then
     ufw status verbose || true
@@ -231,10 +428,10 @@ speed() {
 
 myip() {
   if has curl; then
-    curl -fsS https://ifconfig.me
+    curl -fsS --max-time 5 https://ifconfig.me || warn "public IP lookup failed"
     printf '\n'
   else
-    run_if wget -qO- https://ifconfig.me
+    run_if wget -T 5 -qO- https://ifconfig.me
     printf '\n'
   fi
 }
@@ -248,11 +445,18 @@ case "$cmd" in
   interfaces|ifaces) interfaces "$@" ;;
   routes|route) routes "$@" ;;
   dns) dns "$@" ;;
+  http|headers) http "$@" ;;
+  tls|cert) tls "$@" ;;
+  whois|rdap) whois_lookup "$@" ;;
   ping) ping_host "$@" ;;
   trace|traceroute) trace_host "$@" ;;
   ports) ports "$@" ;;
   scan) scan "$@" ;;
   capture|cap) capture "$@" ;;
+  wifi) wifi "$@" ;;
+  monitor|watch) monitor "$@" ;;
+  export|report) export_report "$@" ;;
+  path|paths) paths "$@" ;;
   vpn) vpn "$@" ;;
   firewall|fw) firewall "$@" ;;
   speed) speed "$@" ;;

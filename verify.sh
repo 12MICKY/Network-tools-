@@ -6,9 +6,11 @@ sh -n uninstall.sh
 sh -n verify.sh
 sh -n bin/nt
 zsh -n completions/nt.zsh
+zsh -n shell/network-tools.zsh
 
 ./bin/nt help >/dev/null
 ./bin/nt doctor >/dev/null
+./bin/nt version >/dev/null
 ./install.sh --dry-run --no-verify >/dev/null 2>&1
 ./uninstall.sh --dry-run >/dev/null 2>&1
 

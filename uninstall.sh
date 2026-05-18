@@ -40,7 +40,7 @@ done
 
 section "Removing network-tools files"
 
-for file in "$HOME/.local/bin/nt" "$HOME/.config/network-tools/completions/nt.zsh"; do
+for file in "$HOME/.local/bin/nt" "$HOME/.config/network-tools/completions/nt.zsh" "$HOME/.config/network-tools/network-tools.zsh"; do
   if [ -e "$file" ]; then
     run rm -f "$file"
     if [ "$dry_run" -eq 1 ]; then
