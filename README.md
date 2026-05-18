@@ -70,6 +70,12 @@ Run the guided setup anytime:
 ./install.sh --wizard
 ```
 
+Try a clean reinstall flow:
+
+```sh
+./setup.sh --reset
+```
+
 ## Usage
 
 ```sh

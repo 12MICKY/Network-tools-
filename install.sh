@@ -28,6 +28,7 @@ Options:
   --no-rc         Do not update ~/.zshrc with shell integration.
   --update        Pull the latest git changes before installing.
   --wizard        Run guided interactive setup.
+  --reset         Remove installed files first, then run guided setup.
 EOF
 }
 
@@ -285,6 +286,7 @@ while [ "$#" -gt 0 ]; do
     --no-rc) no_rc=1 ;;
     --update) update_repo=1 ;;
     --wizard) wizard=1 ;;
+    --reset) "$repo_dir/uninstall.sh"; wizard=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
