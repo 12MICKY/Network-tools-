@@ -9,6 +9,7 @@ no_verify=0
 no_shell=0
 no_rc=0
 update_repo=0
+wizard=0
 stamp="$(date +%Y%m%d-%H%M%S)"
 os_name="$(uname -s)"
 rc_marker_begin="# >>> network-tools >>>"
@@ -26,6 +27,7 @@ Options:
   --no-shell      Skip installing shell integration file.
   --no-rc         Do not update ~/.zshrc with shell integration.
   --update        Pull the latest git changes before installing.
+  --wizard        Run guided interactive setup.
 EOF
 }
 
@@ -52,6 +54,87 @@ run() {
 
 has() {
   command -v "$1" >/dev/null 2>&1
+}
+
+ask_yes_no() {
+  prompt="$1"
+  default="${2:-y}"
+
+  if [ "$default" = "y" ]; then
+    suffix="[Y/n]"
+  else
+    suffix="[y/N]"
+  fi
+
+  printf '%s %s ' "$prompt" "$suffix"
+  read -r answer || answer=''
+  answer="${answer:-$default}"
+
+  case "$answer" in
+    y|Y|yes|YES) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+run_wizard() {
+  if [ ! -t 0 ]; then
+    warn "Wizard requires an interactive terminal."
+    exit 1
+  fi
+
+  clear 2>/dev/null || true
+  cat <<'EOF'
+Network Tools Setup
+
+This wizard installs the nt command, shell completion, and optional network
+packages for macOS/Linux.
+EOF
+
+  section "Detected system"
+  log "OS: $os_name"
+  if [ "$os_name" = "Darwin" ] && has brew; then
+    log "Package manager: brew"
+  elif has apt; then
+    log "Package manager: apt"
+  elif has dnf; then
+    log "Package manager: dnf"
+  elif has pacman; then
+    log "Package manager: pacman"
+  else
+    log "Package manager: not detected"
+  fi
+
+  section "Install plan"
+  log "Command: ~/.local/bin/nt"
+  log "Completion: ~/.config/network-tools/completions/nt.zsh"
+  log "Shell integration: ~/.config/network-tools/network-tools.zsh"
+  log "Zsh startup block: ~/.zshrc"
+
+  if ask_yes_no "Install recommended network packages?" "n"; then
+    install_deps=1
+  fi
+
+  if ask_yes_no "Update this git checkout before installing?" "n"; then
+    update_repo=1
+  fi
+
+  if ! ask_yes_no "Install shell completion/integration?" "y"; then
+    no_shell=1
+  fi
+
+  if [ "$no_shell" -ne 1 ] && ! ask_yes_no "Add managed ~/.zshrc block automatically?" "y"; then
+    no_rc=1
+  fi
+
+  if ask_yes_no "Preview only without writing files?" "n"; then
+    dry_run=1
+  fi
+
+  section "Ready"
+  if ! ask_yes_no "Continue with setup?" "y"; then
+    log "Cancelled."
+    exit 0
+  fi
 }
 
 recommended_packages() {
@@ -201,6 +284,7 @@ while [ "$#" -gt 0 ]; do
     --no-shell) no_shell=1 ;;
     --no-rc) no_rc=1 ;;
     --update) update_repo=1 ;;
+    --wizard) wizard=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -208,6 +292,10 @@ while [ "$#" -gt 0 ]; do
 done
 
 section "network-tools installer"
+
+if [ "$wizard" -eq 1 ]; then
+  run_wizard
+fi
 
 if [ "$update_repo" -eq 1 ]; then
   update_repository

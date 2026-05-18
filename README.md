@@ -9,6 +9,14 @@ repeatable, and easy to verify.
 
 ## Quick Install
 
+Guided setup, recommended for first-time installs:
+
+```sh
+./setup.sh
+```
+
+Direct install:
+
 ```sh
 ./install.sh
 ```
@@ -17,6 +25,12 @@ One-line install from GitHub:
 
 ```sh
 git clone https://github.com/12MICKY/Network-tools-.git && cd Network-tools- && ./install.sh
+```
+
+One-line guided setup:
+
+```sh
+git clone https://github.com/12MICKY/Network-tools-.git && cd Network-tools- && ./setup.sh
 ```
 
 This installs:
@@ -39,6 +53,7 @@ available.
 Equivalent Make targets:
 
 ```sh
+make setup
 make install
 make install-full
 ```
@@ -47,6 +62,12 @@ Update an existing checkout and reinstall:
 
 ```sh
 ./install.sh --update
+```
+
+Run the guided setup anytime:
+
+```sh
+./install.sh --wizard
 ```
 
 ## Usage
